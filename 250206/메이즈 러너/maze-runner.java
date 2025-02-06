@@ -16,6 +16,7 @@ public class Main {
 			this.list = new ArrayList<>();
 			this.size = 0;
 		}
+        
 		
 		public Map(int wall) {
 			super();
