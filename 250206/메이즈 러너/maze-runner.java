@@ -1,223 +1,278 @@
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
 
 public class Main {
-	static int N, M, K;
-	static int[][] arr;
-	static int[][] playerMap;
-
+	
+	static class Map {
+		int wall;
+		List<Integer> list;
+		int size;
+		
+		public Map() {
+			this.list = new ArrayList<>();
+			this.size = 0;
+		}
+		
+		public Map(int wall) {
+			super();
+			this.wall = wall;
+			this.list = new ArrayList<>();
+			this.size = 0;
+		}
+		
+		public void add(int num) {
+			this.list.add(num);
+			this.size++;
+		}
+		
+		public void delete(int num) {
+			this.list.remove(Integer.valueOf(num));
+			this.size--;
+		}
+	}
+	
 	static class Point {
-		int x;
-		int y;
+		int x, y;
 
-		Point(int a, int b) {
-			x = a;
-			y = b;
+		public Point(int x, int y) {
+			super();
+			this.x = x;
+			this.y = y;
+		}
+
+		@Override
+		public String toString() {
+			return "Point [x=" + x + ", y=" + y + "]";
 		}
 	}
+	
+	static class People extends Point {
+		int dist;
 
-	static Point exit;
-	static Point[] players;
-	static int numPlayer;
-	static int[] dist;
-	static boolean[] isExit;
+		public People(int x, int y) {
+			super(x, y);
+			this.dist = 0;
+		}
+
+		@Override
+		public String toString() {
+			return "People [dist=" + dist + "]";
+		}
+		
+	}
+	
+	static int N, M, K;
+	static Map[][] map;
+	static People[] people;
+	static int pCnt;
 	static int[] dx = {-1, 1, 0, 0};
-	static int[] dy = {0, 0, 1, -1};
-
-	public static void main(String[] args) throws Exception {
-		// input
-		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-		String[] inputs = in.readLine().split(" ");
-		N = stoi(inputs[0]);
-		M = stoi(inputs[1]);
-		K = stoi(inputs[2]);
-
-		arr = new int[N][N];
-		playerMap = new int[N][N];
-		for (int i = 0; i < N; ++i) {
-			inputs = in.readLine().split(" ");
-			for (int j = 0; j < N; ++j) {
-				arr[i][j] = stoi(inputs[j]);
+	static int[] dy = {0, 0, -1, 1};
+	static Point exit;
+	static boolean[] isFinished;
+	
+	public static void main(String[] args) throws IOException {
+		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		StringTokenizer st = new StringTokenizer(br.readLine());
+		
+		N = Integer.parseInt(st.nextToken());
+		M = Integer.parseInt(st.nextToken());
+		K = Integer.parseInt(st.nextToken());
+		
+		map = new Map[N+1][N+1];
+		people = new People[M+1];
+		isFinished = new boolean[M+1];
+		
+		// map
+		for(int i=1; i<=N; i++) {
+			st = new StringTokenizer(br.readLine());
+			for(int j=1; j<=N; j++) {
+				map[i][j] = new Map(Integer.parseInt(st.nextToken()));
 			}
 		}
-		players = new Point[M];
-		for (int i = 0; i < M; ++i) {
-			inputs = in.readLine().split(" ");
-			int x = stoi(inputs[0]) - 1;
-			int y = stoi(inputs[1]) - 1;
-			playerMap[x][y] += 1 << i;
-			players[i] = new Point(x, y);
-		}
-		inputs = in.readLine().split(" ");
-		exit = new Point(stoi(inputs[0]) - 1, stoi(inputs[1]) - 1);
-		numPlayer = M;
-		dist = new int[M];
-		isExit = new boolean[M];
-
-		for (int t = 0; t < K; ++t) {
-			if (numPlayer == 0)
-				break;
-
-			// 플레이어의 이동
-			movePlayer();
-			if (numPlayer == 0)
-				break;
+		
+		// 참가자
+		for(int i = 1; i <= M; i++) {
+			st = new StringTokenizer(br.readLine());
+			int x = Integer.parseInt(st.nextToken());
+			int y = Integer.parseInt(st.nextToken());
 			
-			// 미로의 회전
-			rotateMaze();
+			people[i] = new People(x, y);
+			map[x][y].add(i);
 		}
-		int sum = 0;
-		for (int i : dist)
-			sum += i;
+		
+		// 출구 정보
+		st = new StringTokenizer(br.readLine());
+		exit = new Point(Integer.parseInt(st.nextToken()), Integer.parseInt(st.nextToken()));
+		
+		// 시뮬레이션
+		for(int turn=0; turn<K; turn++) {
+			// 이동할 수 있는 참가자가 없다면
+			if(pCnt == M) break;
+			
+			// 참가자 이동
+			move();
+			
+			if(pCnt == M) break;
+			// 미로 회전
+			rotate();
+		}
+		
+		// 결과 출력
 		StringBuilder sb = new StringBuilder();
-		sb.append(sum).append("\n").append(exit.x+1).append(" ").append(exit.y+1);
-		System.out.println(sb);
+		int sum = 0;
+		for(int i=1; i<=M; i++) {
+			sum += people[i].dist;
+		}
+		sb.append(sum + "\n");
+		
+		sb.append(exit.x + " " + exit.y);
+		System.out.println(sb.toString());
+
 	}
-
-	private static void movePlayer() {
-		for (int i = 0; i < M; ++i) {
-			// 이미 탈출한 플레이어
-			if (isExit[i])
-				continue;
-			int base = getDistance(exit.x, exit.y, players[i].x, players[i].y);
-			int min = Integer.MAX_VALUE;
-			int dir = -1;
-			for (int d = 0; d < 4; ++d) {
-				int nx = players[i].x + dx[d];
-				int ny = players[i].y + dy[d];
-				// 범위 밖
-				if (!isInRange(nx, ny))
-					continue;
-
-				int value = getDistance(exit.x, exit.y, nx, ny);
-
-				// 최단거리로만 이동한다. 더 먼 방향으로는 이동X
-				if (base < value)
-					continue;
-
-				if (arr[nx][ny] > 0)
-					continue;
-
-				if (value < min) {
-					min = value;
-					dir = d;
-				}
-			}
-			// 모든 방향으로 갈 수 없는 상태.
-			if (dir == -1)
-				continue;
-
-			playerMap[players[i].x][players[i].y] -= 1 << i;
-			players[i].x = players[i].x + dx[dir];
-			players[i].y = players[i].y + dy[dir];
-			playerMap[players[i].x][players[i].y] += 1 << i;
-			dist[i]++;
-
-			if (players[i].x == exit.x && players[i].y == exit.y) {
-				playerMap[players[i].x][players[i].y] -= 1 << i;
-				numPlayer--;
-				isExit[i] = true;
+	
+	public static void move() {
+		for(int idx = 1; idx <= M; idx++) {
+			// 이미 출구인 참가자는 무시
+			if(isFinished[idx]) continue;
+			
+			People cur = people[idx];
+			int dir = getDir(cur.x, cur.y);
+			
+			// 움직일 수 없는 경우
+			if(dir == -1) continue;
+			
+			// 이동
+			// 기존에 있던 곳에서 없애기
+			map[cur.x][cur.y].delete(idx);
+			
+			// 이동하기
+			cur.x += dx[dir];
+			cur.y += dy[dir];
+			cur.dist++;
+			
+			// 만약 움직인 곳이 출구일 때 
+			if(cur.x == exit.x && cur.y == exit.y) {
+				isFinished[idx] = true;
+				pCnt++;
+			} else {
+				map[cur.x][cur.y].add(idx);
 			}
 		}
 	}
-
-	private static void rotateMaze() {
-		int len = 0;
-		int r = 0;
-		int c = 0;
-		boolean flag = false;
-		for (int length = 2; length <= N; ++length) {
-			for (int i = 0; i <= N - length; ++i) {
-				for (int j = 0; j <= N - length; ++j) {
-					flag = findSquare(i, j, length);
-					if (flag) {
-						r = i;
-						c = j;
-						len = length;
-						flag = true;
-						break;
+	
+	public static void rotate() {
+		// 가장 작은 정사각형
+		int[] result = getSquare();
+		int x = result[0];
+		int y = result[1];
+		int size = result[2];
+		
+		// 임시 배열 만들기
+		Map[][] temp = new Map[N+1][N+1];
+		
+		// 회전해서 임시 배열에 저장하기
+		for(int i=x; i<x+size; i++) {
+			for(int j=y; j<y+size; j++) {
+				int ox = i-x, oy = j-y;
+				int rx = oy, ry = size - ox -1;
+				temp[rx+x][ry+y] = new Map();
+				temp[rx+x][ry+y].wall = map[i][j].wall > 0 ? map[i][j].wall-1 : 0;
+				copyList(temp[rx+x][ry+y].list, map[i][j].list);
+				temp[rx+x][ry+y].size = map[i][j].size;
+			}
+		}
+		
+		// 임시 배열을 다시 원본 배열으로 옮기기
+		for(int i=x; i<x+size; i++) {
+			for(int j=y; j<y+size; j++) {
+				map[i][j].wall = temp[i][j].wall;
+				copyList(map[i][j].list, temp[i][j].list);
+				map[i][j].size = temp[i][j].size;
+				// 회전하면서 사람들 좌표도 바꿈
+				rotateCoor(map[i][j].list, i,j);
+			}
+		}
+		
+		// 출구 회전
+		int ox = exit.x - x, oy = exit.y - y;
+		int rx = oy, ry = size - ox -1;
+		exit.x = rx+x;
+		exit.y = ry+y;
+ 	}
+	
+	public static int getDir(int x, int y) {
+		int dir = -1;
+		int min = distance(x, y);
+		
+		for(int i=0; i<4; i++) {
+			int nx = x + dx[i];
+			int ny = y + dy[i];
+			
+			// 범위를 벗어나거나 벽이 있을 경우
+			if(!isRange(nx, ny) || map[nx][ny].wall > 0) continue;
+			
+			int d = distance(nx, ny);
+			if(min > d) {
+				dir = i;
+				min = d;
+			}
+		}
+		return dir;
+	}
+	
+	public static int[] getSquare() {
+		int[] result = {0, 0, 0};
+		for(int size=2; size<=N; size++) {
+			for(int r = 1, rEnd = N-size+1; r<=rEnd; r++) {
+				for(int c = 1, cEnd = N-size+1; c<=cEnd; c++) {
+					boolean isExit = false, isPeople = false;
+					for(int i=r; i<r+size; i++) {
+						for(int j=c; j<c+size; j++) {
+							if(i==exit.x && j==exit.y) {	// 출구인 경우
+								isExit = true;
+							} else if(map[i][j].size > 0) {
+								isPeople = true;
+							}
+						}
+					}
+					
+					if(isExit && isPeople) {
+						result[0] = r;
+						result[1] = c;
+						result[2] = size;
+						return result;
 					}
 				}
-				if (flag)
-					break;
-			}
-			if (flag)
-				break;
-		}
-
-		// 회전
-		rotate(r, c, len);
-	}
-
-	private static void rotate(int r, int c, int len) {
-		int[][] copy = new int[len][len];
-		int[][] copyPlayer = new int[len][len];
-		int nx = 0;
-		int ny = 0;
-		for (int i = 0; i < len; ++i) {
-			for (int j = 0; j < len; ++j) {
-				copy[j][len - 1 - i] = arr[i + r][j + c];
-				copyPlayer[j][len - 1 - i] = playerMap[i + r][j + c];
-
-				if (exit.x == i + r && exit.y == j + c) {
-					nx = j + r;
-					ny = len - 1 - i + c;
-				}
 			}
 		}
-		exit.x = nx;
-		exit.y = ny;
-		for (int i = r; i < r + len; ++i) {
-			for (int j = c; j < c + len; ++j) {
-				arr[i][j] = copy[i - r][j - c];
-				if (arr[i][j] > 0)
-					arr[i][j]--;
-
-				playerMap[i][j] = copyPlayer[i - r][j - c];
-				for (int k = 0; k < M; ++k) {
-					int p = 1 << k;
-					if ((playerMap[i][j] & p) == p) {
-						players[k].x = i;
-						players[k].y = j;
-					}
-				}
-			}
+		
+		return result;
+	}
+	
+	public static List<Integer> copyList(List<Integer> dest, List<Integer> src) {
+		dest.clear();
+		for(int num : src) {
+			dest.add(num);
+		}
+		return dest;
+	}
+	
+	public static void rotateCoor(List<Integer> list, int x, int y) {
+		for(int idx : list) {
+			people[idx].x = x;
+			people[idx].y = y;
 		}
 	}
-
-	private static boolean findSquare(int i, int j, int length) {
-		boolean hasPlayer = false;
-		boolean hasExit = false;
-
-		for (int x = i; x < i + length; ++x) {
-			for (int y = j; y < j + length; ++y) {
-				if (!hasPlayer) {
-					if (playerMap[x][y] > 0)
-						hasPlayer = true;
-				}
-
-				if (!hasExit)
-					if (exit.x == x && exit.y == y)
-						hasExit = true;
-
-				if (hasPlayer && hasExit)
-					return true;
-			}
-		}
-		return false;
+	
+	public static int distance(int x, int y) {
+		return Math.abs(exit.x - x) + Math.abs(exit.y - y);
 	}
-
-	public static boolean isInRange(int x, int y) {
-		if (0 <= x && x < N && 0 <= y && y < N)
-			return true;
-		return false;
-	}
-
-	public static int getDistance(int x1, int y1, int x2, int y2) {
-		return Math.abs(x1 - x2) + Math.abs(y1 - y2);
-	}
-
-	public static int stoi(String s) {
-		return Integer.parseInt(s);
+	
+	public static boolean isRange(int x, int y) {
+		return x >= 1 && x <= N && y >= 1 && y <= N;
 	}
 }
