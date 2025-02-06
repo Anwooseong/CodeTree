@@ -1,161 +1,223 @@
-import java.util.*;
-import java.io.*;
-
-class Square {
-    int startX;
-    int startY;
-    int L;
-
-    public Square(int startX, int startY, int l) {
-        this.startX = startX;
-        this.startY = startY;
-        L = l;
-    }
-}
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class Main {
+	static int N, M, K;
+	static int[][] arr;
+	static int[][] playerMap;
 
-    static int[][] map;
-    static final int PERSON = -1, EXIT = -100;
-    static int N, M, K, answer, cnt;
-    static int[] dx = {-1, 1, 0, 0};
-    static int[] dy = {0, 0, -1, 1};
+	static class Point {
+		int x;
+		int y;
 
-    public static void main(String[] args) throws Exception {
-        BufferedReader bf = new BufferedReader(new InputStreamReader(System.in));
-        StringTokenizer st = new StringTokenizer(bf.readLine(), " ");
+		Point(int a, int b) {
+			x = a;
+			y = b;
+		}
+	}
 
-        N = Integer.parseInt(st.nextToken());
-        M = Integer.parseInt(st.nextToken());
-        K = Integer.parseInt(st.nextToken());
+	static Point exit;
+	static Point[] players;
+	static int numPlayer;
+	static int[] dist;
+	static boolean[] isExit;
+	static int[] dx = {-1, 1, 0, 0};
+	static int[] dy = {0, 0, 1, -1};
 
-        // 맵 설정
-        map = new int[N][N];
-        for (int i = 0; i < N; i++) {
-            st = new StringTokenizer(bf.readLine(), " ");
-            for (int j = 0; j < N; j++) {
-                map[i][j] = Integer.parseInt(st.nextToken());
-            }
-        }
+	public static void main(String[] args) throws Exception {
+		// input
+		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+		String[] inputs = in.readLine().split(" ");
+		N = stoi(inputs[0]);
+		M = stoi(inputs[1]);
+		K = stoi(inputs[2]);
 
-        // 참가자 설정
-        for (int i = 0; i < M; i++) {
-            st = new StringTokenizer(bf.readLine(), " ");
-            int x = Integer.parseInt(st.nextToken()) - 1;
-            int y = Integer.parseInt(st.nextToken()) - 1;
-            map[x][y] += PERSON;
-        }
+		arr = new int[N][N];
+		playerMap = new int[N][N];
+		for (int i = 0; i < N; ++i) {
+			inputs = in.readLine().split(" ");
+			for (int j = 0; j < N; ++j) {
+				arr[i][j] = stoi(inputs[j]);
+			}
+		}
+		players = new Point[M];
+		for (int i = 0; i < M; ++i) {
+			inputs = in.readLine().split(" ");
+			int x = stoi(inputs[0]) - 1;
+			int y = stoi(inputs[1]) - 1;
+			playerMap[x][y] += 1 << i;
+			players[i] = new Point(x, y);
+		}
+		inputs = in.readLine().split(" ");
+		exit = new Point(stoi(inputs[0]) - 1, stoi(inputs[1]) - 1);
+		numPlayer = M;
+		dist = new int[M];
+		isExit = new boolean[M];
 
-        //탈출구 설정
-        st = new StringTokenizer(bf.readLine(), " ");
-        int exitX = Integer.parseInt(st.nextToken()) - 1;
-        int exitY = Integer.parseInt(st.nextToken()) - 1;
-        map[exitX][exitY] = EXIT;
+		for (int t = 0; t < K; ++t) {
+			if (numPlayer == 0)
+				break;
 
-        answer = 0;
-        cnt = M;
-        for (int time = 0; time < K; time++) {
-            if (cnt == 0) break;
-            int[][] newMap = new int[N][N];
-            copyMap(newMap);
-            movePerson(exitX, exitY, newMap);
-            map = newMap;
+			// 플레이어의 이동
+			movePlayer();
+			if (numPlayer == 0)
+				break;
+			
+			// 미로의 회전
+			rotateMaze();
+		}
+		int sum = 0;
+		for (int i : dist)
+			sum += i;
+		StringBuilder sb = new StringBuilder();
+		sb.append(sum).append("\n").append(exit.x+1).append(" ").append(exit.y+1);
+		System.out.println(sb);
+	}
 
-            if (cnt == 0) break;
+	private static void movePlayer() {
+		for (int i = 0; i < M; ++i) {
+			// 이미 탈출한 플레이어
+			if (isExit[i])
+				continue;
+			int base = getDistance(exit.x, exit.y, players[i].x, players[i].y);
+			int min = Integer.MAX_VALUE;
+			int dir = -1;
+			for (int d = 0; d < 4; ++d) {
+				int nx = players[i].x + dx[d];
+				int ny = players[i].y + dy[d];
+				// 범위 밖
+				if (!isInRange(nx, ny))
+					continue;
 
-            //정사각형 찾기
-            Square square = findSquare(exitX, exitY);
+				int value = getDistance(exit.x, exit.y, nx, ny);
 
-            //회전
-            int[][] rotateMap = new int[N][N];
-            copyMap(rotateMap);
-            for (int i = 0; i < square.L; i++) {
-                for (int j = 0; j < square.L; j++) {
-                    rotateMap[square.startX + i][square.startY + j] = map[square.startX + square.L - 1 - j][square.startY + i];
-                    if (rotateMap[square.startX + i][square.startY + j] > 0) {
-                        rotateMap[square.startX + i][square.startY + j] -= 1;
-                    }
-                }
-            }
-            map = rotateMap;
+				// 최단거리로만 이동한다. 더 먼 방향으로는 이동X
+				if (base < value)
+					continue;
 
-            for (int i = 0; i < N; i++) {
-                for (int j = 0; j < N; j++) {
-                    if (map[i][j] == EXIT) {
-                        exitX = i;
-                        exitY = j;
-                    }
-                }
-            }
+				if (arr[nx][ny] > 0)
+					continue;
 
-        }
+				if (value < min) {
+					min = value;
+					dir = d;
+				}
+			}
+			// 모든 방향으로 갈 수 없는 상태.
+			if (dir == -1)
+				continue;
 
-        System.out.println(answer);
-        System.out.println((exitX + 1) + " " + (exitY + 1));
-    }
+			playerMap[players[i].x][players[i].y] -= 1 << i;
+			players[i].x = players[i].x + dx[dir];
+			players[i].y = players[i].y + dy[dir];
+			playerMap[players[i].x][players[i].y] += 1 << i;
+			dist[i]++;
 
-    static Square findSquare(int exitX, int exitY) {
-        int length = N;
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                if (map[i][j] < 0 && map[i][j] > EXIT) {
-                    length = Math.min(length, Math.max(Math.abs(exitX - i), Math.abs(exitY - j)));
-                }
-            }
-        }
+			if (players[i].x == exit.x && players[i].y == exit.y) {
+				playerMap[players[i].x][players[i].y] -= 1 << i;
+				numPlayer--;
+				isExit[i] = true;
+			}
+		}
+	}
 
-        for (int i = 0; i < N - length; i++) {
-            for (int j = 0; j < N - length; j++) {
-                if (i <= exitX && exitX <= i + length && j <= exitY && exitY <= j + length) {
-                    for (int k = i; k < i + length + 1; k++) {
-                        for (int l = j; l < j + length + 1; l++) {
-                            if (map[k][l] < 0 && map[k][l] > EXIT) {
-                                return new Square(i, j, length + 1);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return new Square(0, 0, 0);
-    }
+	private static void rotateMaze() {
+		int len = 0;
+		int r = 0;
+		int c = 0;
+		boolean flag = false;
+		for (int length = 2; length <= N; ++length) {
+			for (int i = 0; i <= N - length; ++i) {
+				for (int j = 0; j <= N - length; ++j) {
+					flag = findSquare(i, j, length);
+					if (flag) {
+						r = i;
+						c = j;
+						len = length;
+						flag = true;
+						break;
+					}
+				}
+				if (flag)
+					break;
+			}
+			if (flag)
+				break;
+		}
 
-    static void movePerson(int exitX, int exitY, int[][] newMap) {
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                if (map[i][j] < 0 && map[i][j] > EXIT) { //사람인 경우 최단거리 파악
-                    int originDistance = Math.abs(i - exitX) + Math.abs(j - exitY);
-                    for (int k = 0; k < 4; k++) {
-                        int nextX = i + dx[k];
-                        int nextY = j + dy[k];
-                        int newDistance = Math.abs(nextX - exitX) + Math.abs(nextY - exitY);
-                        if (isInRange(nextX, nextY) && newMap[nextX][nextY] <= 0) {
-                            if (originDistance > newDistance) {
-                                if (newMap[nextX][nextY] == EXIT) {
-                                    cnt += newMap[i][j];
-                                } else {
-                                    newMap[nextX][nextY] += newMap[i][j];
-                                }
-                                answer += (-newMap[i][j]);
-                                newMap[i][j] = 0;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+		// 회전
+		rotate(r, c, len);
+	}
 
-    static boolean isInRange(int nextX, int nextY) {
-        return nextX >= 0 && nextX < N && nextY >= 0 && nextY < N;
-    }
+	private static void rotate(int r, int c, int len) {
+		int[][] copy = new int[len][len];
+		int[][] copyPlayer = new int[len][len];
+		int nx = 0;
+		int ny = 0;
+		for (int i = 0; i < len; ++i) {
+			for (int j = 0; j < len; ++j) {
+				copy[j][len - 1 - i] = arr[i + r][j + c];
+				copyPlayer[j][len - 1 - i] = playerMap[i + r][j + c];
 
-    static void copyMap(int[][] newMap) {
-        for (int i = 0; i < N; i++) {
-            for (int j = 0; j < N; j++) {
-                newMap[i][j] = map[i][j];
-            }
-        }
-    }
+				if (exit.x == i + r && exit.y == j + c) {
+					nx = j + r;
+					ny = len - 1 - i + c;
+				}
+			}
+		}
+		exit.x = nx;
+		exit.y = ny;
+		for (int i = r; i < r + len; ++i) {
+			for (int j = c; j < c + len; ++j) {
+				arr[i][j] = copy[i - r][j - c];
+				if (arr[i][j] > 0)
+					arr[i][j]--;
+
+				playerMap[i][j] = copyPlayer[i - r][j - c];
+				for (int k = 0; k < M; ++k) {
+					int p = 1 << k;
+					if ((playerMap[i][j] & p) == p) {
+						players[k].x = i;
+						players[k].y = j;
+					}
+				}
+			}
+		}
+	}
+
+	private static boolean findSquare(int i, int j, int length) {
+		boolean hasPlayer = false;
+		boolean hasExit = false;
+
+		for (int x = i; x < i + length; ++x) {
+			for (int y = j; y < j + length; ++y) {
+				if (!hasPlayer) {
+					if (playerMap[x][y] > 0)
+						hasPlayer = true;
+				}
+
+				if (!hasExit)
+					if (exit.x == x && exit.y == y)
+						hasExit = true;
+
+				if (hasPlayer && hasExit)
+					return true;
+			}
+		}
+		return false;
+	}
+
+	public static boolean isInRange(int x, int y) {
+		if (0 <= x && x < N && 0 <= y && y < N)
+			return true;
+		return false;
+	}
+
+	public static int getDistance(int x1, int y1, int x2, int y2) {
+		return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+	}
+
+	public static int stoi(String s) {
+		return Integer.parseInt(s);
+	}
 }
