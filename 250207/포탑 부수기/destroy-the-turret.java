@@ -67,7 +67,7 @@ public class Main {
             } else {
                 // 포탄 공격
                 arr[targetX][targetY] = arr[targetX][targetY] - power <= 0 ? 0 : arr[targetX][targetY] - power;
-                int[] eightDirX = {-1, -1, -1, 0, 1, 1, 1, 0};
+                int[] eightDirX = {-1, -1, -1, 0, 1, 1, 1, 0}; // 상-상좌-상우-좌-하-하좌-하우-우
                 int[] eightDirY = {-1, 0, 1, 1, 1, 0, -1, -1};
                 for (int i = 0; i < 8; i++) {
                     int nextX = (targetX + eightDirX[i] + N) % N; // 경계 처리
@@ -88,6 +88,7 @@ public class Main {
                     if (arr[i][j] == copyArr[i][j]) arr[i][j]++;
                 }
             }
+
         }
 
         int answer = Integer.MIN_VALUE;
