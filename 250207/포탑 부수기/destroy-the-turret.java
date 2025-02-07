@@ -53,12 +53,12 @@ public class Main {
             }
             if (isFinishLaser) {
                 int x = targetX, y = targetY;
-                while (true) {
-                    if (x == startX && y == startY) break;
+                while (!(x == startX && y == startY)) {
+                    if (findLaser[x][y] == null) break; // Null 체크 추가
                     if (x == targetX && y == targetY) {
-                        arr[x][y] = arr[x][y] - power <= 0 ? 0 : arr[x][y] - power;
+                        arr[x][y] = Math.max(0, arr[x][y] - power);
                     } else {
-                        arr[x][y] = arr[x][y] - power / 2 <= 0 ? 0 : arr[x][y] - power / 2;
+                        arr[x][y] = Math.max(0, arr[x][y] - power / 2);
                     }
                     Point pastPoint = findLaser[x][y];
                     x = pastPoint.pastX;
@@ -66,7 +66,7 @@ public class Main {
                 }
             } else {
                 // 포탄 공격
-                arr[targetX][targetY] = arr[targetX][targetY] - power <= 0 ? 0 : arr[targetX][targetY] - power;
+                arr[targetX][targetY] = Math.max(arr[targetX][targetY] - power, 0);
                 int[] eightDirX = {-1, -1, -1, 0, 1, 1, 1, 0}; // 상-상좌-상우-좌-하-하좌-하우-우
                 int[] eightDirY = {-1, 0, 1, 1, 1, 0, -1, -1};
                 for (int i = 0; i < 8; i++) {
@@ -74,7 +74,7 @@ public class Main {
                     int nextY = (targetY + eightDirY[i] + M) % M; // 경계 처리
                     if (arr[nextX][nextY] == 0) continue;
                     if (nextX == startX && nextY == startY) continue;
-                    arr[nextX][nextY] = arr[nextX][nextY] - power / 2 <= 0 ? 0 : arr[nextX][nextY] - power / 2;
+                    arr[nextX][nextY] = Math.max(arr[nextX][nextY] - power / 2, 0);
                 }
             }
             turn[startX][startY] = time;
