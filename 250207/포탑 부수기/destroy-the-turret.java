@@ -128,11 +128,6 @@ public class Main {
         return isFinishLaser;
     }
 
-
-    static boolean isInRange(int x, int y) {
-        return x >= 0 && x < N && y >= 0 && y < M;
-    }
-
     static void selectedTower() {
         // 공격자
         minPower = Integer.MAX_VALUE;
